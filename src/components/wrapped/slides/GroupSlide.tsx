@@ -69,7 +69,7 @@ export default function GroupSlide({ data }: SlideProps) {
             className="mt-16 text-xl font-bold max-w-md"
           >
             <span className="text-sm font-normal opacity-80 uppercase tracking-widest mt-2 block">
-              Welcome to the club.
+              Hope you feel cozy here!
             </span>
           </motion.p>
         )}
