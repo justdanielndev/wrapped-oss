@@ -65,13 +65,17 @@ export const getQueueSize = getWaitlistSize;
 
 export async function resetStuckUsers(): Promise<void> {
     try {
+        console.log('Checking for stuck users...');
         const stuckRes = await databases.listDocuments(
             DB_ID,
             COLLECTION_ID,
             [
-                Query.equal('status', 'processing')
+                Query.equal('status', 'processing'),
+                Query.limit(100)
             ]
         );
+
+        console.log(`Found ${stuckRes.total} stuck users.`);
 
         for (const doc of stuckRes.documents) {
              console.log(`Resetting stuck user ${doc.userId} to pending.`);

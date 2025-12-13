@@ -4,6 +4,7 @@ import { WrappedData } from '@/types/wrapped';
 import { Client, Databases, Query } from 'node-appwrite';
 import { getUserData } from '@/lib/waitlist';
 import { getUserClan } from '@/lib/clans';
+import { processWaitlist } from '@/lib/worker';
 
 async function slackFetch(endpoint: string, token: string, params: Record<string, string> = {}) {
   const url = new URL(`https://slack.com/api/${endpoint}`);
@@ -27,6 +28,9 @@ export async function GET() {
   if (!token || !userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  // Trigger worker on any wrapped request to ensure processing is active
+  processWaitlist().catch(err => console.error('Background processing error:', err));
 
   try {
     const storedData = await getUserData(userId);
