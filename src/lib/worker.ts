@@ -262,7 +262,7 @@ async function processUser(
 
     if (dmRes.ok) {
       const channelId = dmRes.channel.id;
-      const message = `🎉 Your 2025 Wrapped is ready!\n\nVisit wrapped.isitzoe.dev to see it!`;
+      const message = `🎉 Your 2025 Wrapped is ready!\n\nVisit https://wrapped.isitzoe.dev/ to see it!`;
 
       const postRes = await slackFetch('chat.postMessage', dmSenderToken, {
         channel: channelId,
