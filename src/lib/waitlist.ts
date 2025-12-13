@@ -61,31 +61,36 @@ export async function getWaitlistSize(): Promise<number> {
 
 export const getQueueSize = getWaitlistSize;
 
+export async function resetStuckUsers(): Promise<void> {
+    try {
+        const stuckRes = await databases.listDocuments(
+            DB_ID,
+            COLLECTION_ID,
+            [
+                Query.equal('status', 'processing')
+            ]
+        );
+
+        for (const doc of stuckRes.documents) {
+             console.log(`Resetting stuck user ${doc.userId} to pending.`);
+             await databases.updateDocument(
+                DB_ID,
+                COLLECTION_ID,
+                doc.$id,
+                { status: 'pending' }
+            );
+        }
+    } catch (e) {
+        console.error('Error resetting stuck users', e);
+    }
+}
+
 export async function getNextUserToProcess(): Promise<{
   userId: string;
   slackUserId: string;
   token: string;
 } | null> {
     try {
-        const stuckRes = await databases.listDocuments(
-            DB_ID,
-            COLLECTION_ID,
-            [
-                Query.equal('status', 'processing'),
-                Query.limit(1)
-            ]
-        );
-
-        if (stuckRes.documents.length > 0) {
-             const doc = stuckRes.documents[0];
-             console.log(`Found stuck processing user ${doc.userId}, picking them up.`);
-             return {
-                userId: doc.userId,
-                slackUserId: doc.slackUserId,
-                token: doc.token,
-            };
-        }
-
         const res = await databases.listDocuments(
             DB_ID,
             COLLECTION_ID,

@@ -1,4 +1,4 @@
-import { getNextUserToProcess, markUserProcessed, isProcessingActive, setProcessing } from '@/lib/waitlist';
+import { getNextUserToProcess, markUserProcessed, isProcessingActive, setProcessing, resetStuckUsers } from '@/lib/waitlist';
 import { getAllSlackTokens } from '@/lib/slack-tokens';
 
 async function slackFetch(endpoint: string, initialToken: string, params: Record<string, string> = {}, retries = 100) {
@@ -304,22 +304,48 @@ export async function processWaitlist() {
   setProcessing(true);
 
   try {
-    let user;
-    while ((user = await getNextUserToProcess())) {
-      console.log(`Processing user: ${user.userId}`);
-      const result = await processUser(user.userId, user.slackUserId, user.token);
-      
-      await markUserProcessed(user.userId, result.success ? { 
-          topChannels: result.channels,
-          topDms: result.dms,
-          totalMessages: result.totalMessages,
-          confessionsMessages: result.confessionsMessages,
-          metaMessages: result.metaMessages,
-          prox2Messages: result.prox2Messages
-      } : undefined);
+    await resetStuckUsers();
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    }
+    const CONCURRENCY = 2;
+    const fetchLock = { locked: false };
+
+    const worker = async (workerId: number) => {
+        console.log(`Worker ${workerId} started`);
+        while (true) {
+            let user;
+            
+            while (fetchLock.locked) {
+                await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            
+            fetchLock.locked = true;
+            try {
+                user = await getNextUserToProcess();
+            } finally {
+                fetchLock.locked = false;
+            }
+
+            if (!user) {
+                break;
+            }
+
+            console.log(`Worker ${workerId} processing user: ${user.userId}`);
+            const result = await processUser(user.userId, user.slackUserId, user.token);
+            
+            await markUserProcessed(user.userId, result.success ? { 
+                topChannels: result.channels,
+                topDms: result.dms,
+                totalMessages: result.totalMessages,
+                confessionsMessages: result.confessionsMessages,
+                metaMessages: result.metaMessages,
+                prox2Messages: result.prox2Messages
+            } : undefined);
+
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+    };
+
+    await Promise.all(Array.from({ length: CONCURRENCY }, (_, i) => worker(i + 1)));
   } finally {
     setProcessing(false);
   }
