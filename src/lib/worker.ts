@@ -7,7 +7,8 @@ async function slackFetch(endpoint: string, initialToken: string, params: Record
 
   const botTokens = getAllSlackTokens();
   const isUserToken = initialToken.startsWith('xoxp');
-  const availableTokens = isUserToken ? [initialToken] : [...botTokens, initialToken].filter((t, i, self) => self.indexOf(t) === i && t);
+  const availableTokens = (isUserToken ? [initialToken] : [...botTokens, initialToken])
+    .filter((t, i, self) => self.indexOf(t) === i && t);
   
   let currentTokenIndex = 0;
 
@@ -33,6 +34,20 @@ async function slackFetch(endpoint: string, initialToken: string, params: Record
                     }
                     continue;
                 }
+                
+                if (data.error === 'not_allowed_token_type') {
+                    console.warn(`Token ending in ...${tokenToUse.slice(-4)} not allowed for ${endpoint}, removing from rotation.`);
+                    const indexToRemove = availableTokens.indexOf(tokenToUse);
+                    if (indexToRemove > -1) {
+                        availableTokens.splice(indexToRemove, 1);
+                        j--;
+                    }
+                    if (availableTokens.length === 0) {
+                        return { ok: false, error: 'no_valid_tokens_remaining' };
+                    }
+                    continue;
+                }
+
                 console.warn(`API error on ${endpoint} with token ending in ...${tokenToUse.slice(-4)}: ${data.error}`);
                 continue;
             }
