@@ -19,11 +19,14 @@ async function slackFetch(endpoint: string, token: string, params: Record<string
   return res.json();
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const cookieStore = await cookies();
   const token = cookieStore.get('slack_token')?.value;
   const userId = cookieStore.get('slack_user_id')?.value;
   const isNoPrivates = cookieStore.get('slack_noprivates')?.value === 'true';
+
+  const { searchParams } = new URL(request.url);
+  const customHackatimeId = searchParams.get('customHackatime');
 
   if (!token || !userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -108,7 +111,7 @@ export async function GET() {
 
     let hackatimeHours = 0;
     try {
-      const hackatimeRes = await fetch(`https://hackatime.hackclub.com/api/v1/users/${userId}/stats?features=projects`);
+      const hackatimeRes = await fetch(`https://hackatime.hackclub.com/api/v1/users/${customHackatimeId || userId}/stats?features=projects`);
       if (hackatimeRes.ok) {
         const hackatimeData = await hackatimeRes.json();
         if (hackatimeData.data && hackatimeData.data.total_seconds) {

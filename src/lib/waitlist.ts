@@ -140,7 +140,7 @@ export async function markUserProcessed(userId: string, results?: any): Promise<
         );
         
         if (res.documents.length > 0) {
-            const updateData: any = { status: 'completed' };
+            const updateData: any = { status: 'completed', token: null };
             if (results) {
                 updateData.results = JSON.stringify(results);
             }
