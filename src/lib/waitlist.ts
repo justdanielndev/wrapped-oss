@@ -205,11 +205,13 @@ export async function getUserPosition(userId: string): Promise<{ position: numbe
         }
 
         if (userDoc.status === 'pending') {
+            const mode = userDoc.mode || 'default';
             const aheadRes = await databases.listDocuments(
                 DB_ID,
                 COLLECTION_ID,
                 [
                     Query.equal('status', 'pending'),
+                    Query.equal('mode', mode),
                     Query.lessThan('addedAt', userDoc.addedAt)
                 ]
             );
