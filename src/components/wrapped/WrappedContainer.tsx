@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WrappedData } from '@/types/wrapped';
 
 export interface SlideConfig {
+  id?: string;
   component: React.ComponentType<any>;
   theme: 'light' | 'dark';
 }
@@ -22,7 +23,13 @@ export default function WrappedContainer({ data, slides, isSharedView = false }:
   const [isMuted, setIsMuted] = useState(true);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [showShareConfirmation, setShowShareConfirmation] = useState(false);
   const [isSharingLoading, setIsSharingLoading] = useState(false);
+  const [shareOptions, setShareOptions] = useState({
+    hideDms: false,
+    hideTopChannels: false,
+    hideBestie: false
+  });
   const audioRef = useRef<HTMLAudioElement>(null);
   
   useEffect(() => {
@@ -59,20 +66,26 @@ export default function WrappedContainer({ data, slides, isSharedView = false }:
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [isMuted]);
+  const handleShareClick = () => {
+    setShowShareMenu(false);
+    setShowShareConfirmation(true);
+  };
 
-  const handleShare = async () => {
+  const confirmShare = async () => {
     setIsSharingLoading(true);
+    setShowShareConfirmation(false);
     try {
       const res = await fetch('/api/share', { 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({ ...data, shareOptions })
       });
       const resData = await res.json();
       if (resData.publicId) {
         setShareUrl(`${window.location.origin}/view/${resData.publicId}`);
+        setShowShareMenu(true);
       }
     } catch (e) {
       console.error(e);
@@ -113,12 +126,24 @@ export default function WrappedContainer({ data, slides, isSharedView = false }:
     }
   };
   
+  const filteredSlides = slides.filter(slide => {
+    if (isSharedView && data.shareOptions) {
+      if (data.shareOptions.hideDms && slide.id === 'people-dms') return false;
+      if (data.shareOptions.hideTopChannels && slide.id === 'top-channels') return false;
+    }
+    return true;
+  });
+
+  const currentSlideConfig = filteredSlides[currentSlideIndex];
+  const CurrentSlide = currentSlideConfig.component;
+  const isDark = currentSlideConfig.theme === 'dark';
+
   const nextSlide = useCallback(() => {
-    if (currentSlideIndex < slides.length - 1) {
+    if (currentSlideIndex < filteredSlides.length - 1) {
       setDirection(1);
       setCurrentSlideIndex((prev) => prev + 1);
     }
-  }, [currentSlideIndex, slides.length]);
+  }, [currentSlideIndex, filteredSlides.length]);
 
   const prevSlide = useCallback(() => {
     if (currentSlideIndex > 0) {
@@ -150,10 +175,6 @@ export default function WrappedContainer({ data, slides, isSharedView = false }:
     return () => window.removeEventListener('click', handleClickOutside);
   }, [showShareMenu]);
 
-  const currentSlideConfig = slides[currentSlideIndex];
-  const CurrentSlide = currentSlideConfig.component;
-  const isDark = currentSlideConfig.theme === 'dark';
-
   return (
     <div 
       className={`relative w-full h-[100dvh] overflow-hidden flex items-center justify-center transition-colors duration-500 ${isDark ? 'bg-wrapped-black text-wrapped-cream' : 'bg-wrapped-cream text-wrapped-black'}`}
@@ -164,7 +185,7 @@ export default function WrappedContainer({ data, slides, isSharedView = false }:
     >
       
       <div className="absolute top-4 left-0 w-full px-4 flex gap-2 z-50">
-        {slides.map((_, index) => {
+        {filteredSlides.map((_, index) => {
           const isCompleted = index < currentSlideIndex;
           const isActive = index === currentSlideIndex;
           
@@ -216,23 +237,23 @@ export default function WrappedContainer({ data, slides, isSharedView = false }:
                             <>
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); handleCopyLink(); }}
-                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-medium"
+                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold"
                                 >
                                     Copy Link
                                 </button>
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); handleDeleteShare(); }}
                                     disabled={isSharingLoading}
-                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-medium text-red-600"
+                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold text-red-600"
                                 >
                                     {isSharingLoading ? 'Deleting...' : 'Stop Sharing'}
                                 </button>
                             </>
                         ) : (
                             <button 
-                                onClick={(e) => { e.stopPropagation(); handleShare(); }}
+                                onClick={(e) => { e.stopPropagation(); handleShareClick(); }}
                                 disabled={isSharingLoading}
-                                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-medium"
+                                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-bold"
                             >
                                 {isSharingLoading ? 'Creating...' : 'Share Wrapped'}
                             </button>
@@ -267,7 +288,63 @@ export default function WrappedContainer({ data, slides, isSharedView = false }:
           </svg>
         )}
       </button>
+{showShareConfirmation && (
+        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white text-black p-6 rounded-2xl max-w-sm w-full shadow-2xl">
+            <h3 className="text-xl font-bold mb-2">Share your Wrapped?</h3>
+            <p className="text-gray-600 mb-6">
+              This will create a public link to your entire Hack Club Wrapped 2025. Anyone with the link can view it.
+            </p>
+            
+            <div className="flex flex-col gap-2 mb-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={shareOptions.hideDms}
+                  onChange={(e) => setShareOptions(prev => ({ ...prev, hideDms: e.target.checked }))}
+                  className="w-4 h-4 rounded border-gray-300 text-wrapped-red focus:ring-wrapped-red"
+                />
+                <span className="text-sm font-medium">Hide DMs Tab</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={shareOptions.hideTopChannels}
+                  onChange={(e) => setShareOptions(prev => ({ ...prev, hideTopChannels: e.target.checked }))}
+                  className="w-4 h-4 rounded border-gray-300 text-wrapped-red focus:ring-wrapped-red"
+                />
+                <span className="text-sm font-medium">Hide Top Channels Tab</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={shareOptions.hideBestie}
+                  onChange={(e) => setShareOptions(prev => ({ ...prev, hideBestie: e.target.checked }))}
+                  className="w-4 h-4 rounded border-gray-300 text-wrapped-red focus:ring-wrapped-red"
+                />
+                <span className="text-sm font-medium">Hide Bestie in Summary</span>
+              </label>
+            </div>
 
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowShareConfirmation(false)}
+                className="flex-1 px-4 py-2 rounded-xl font-bold bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmShare}
+                className="flex-1 px-4 py-2 rounded-xl font-bold bg-wrapped-red text-white hover:bg-red-600 transition-colors"
+              >
+                Share
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      
       <div className="absolute inset-0 flex z-40">
         <div className="w-1/3 h-full cursor-w-resize" onClick={(e) => { e.stopPropagation(); prevSlide(); }} />
         <div className="w-1/3 h-full" onClick={(e) => { e.stopPropagation(); nextSlide(); }} />

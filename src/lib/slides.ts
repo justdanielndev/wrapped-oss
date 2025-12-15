@@ -11,25 +11,25 @@ import SummarySlide from '@/components/wrapped/slides/SummarySlide';
 import { SlideConfig } from '@/components/wrapped/WrappedContainer';
 
 export const SLIDES: SlideConfig[] = [
-  { component: IntroSlide, theme: 'light' },
-  { component: TotalMessagesSlide, theme: 'dark' },
-  { component: TopChannelsSlide, theme: 'light' },
-  { component: PeopleDmsSlide, theme: 'dark' },
-  { component: ConfessionsMetaSlide, theme: 'light' },
-  { component: Prox2Slide, theme: 'dark' },
-  { component: YSWSSlide, theme: 'light' },
-  { component: HackatimeSlide, theme: 'dark' },
-  { component: GroupSlide, theme: 'light' },
-  { component: SummarySlide, theme: 'dark' }
+  { id: 'intro', component: IntroSlide, theme: 'light' },
+  { id: 'total-messages', component: TotalMessagesSlide, theme: 'dark' },
+  { id: 'top-channels', component: TopChannelsSlide, theme: 'light' },
+  { id: 'people-dms', component: PeopleDmsSlide, theme: 'dark' },
+  { id: 'confessions', component: ConfessionsMetaSlide, theme: 'light' },
+  { id: 'prox2', component: Prox2Slide, theme: 'dark' },
+  { id: 'ysws', component: YSWSSlide, theme: 'light' },
+  { id: 'hackatime', component: HackatimeSlide, theme: 'dark' },
+  { id: 'group', component: GroupSlide, theme: 'light' },
+  { id: 'summary', component: SummarySlide, theme: 'dark' }
 ];
 
 export const PUBLIC_SLIDES: SlideConfig[] = [
-  { component: IntroSlide, theme: 'light' },
-  { component: TotalMessagesSlide, theme: 'dark' },
-  { component: TopChannelsSlide, theme: 'light' },
-  { component: ConfessionsMetaSlide, theme: 'light' },
-  { component: YSWSSlide, theme: 'light' },
-  { component: HackatimeSlide, theme: 'dark' },
-  { component: GroupSlide, theme: 'light' },
-  { component: SummarySlide, theme: 'dark' }
+  { id: 'intro', component: IntroSlide, theme: 'light' },
+  { id: 'total-messages', component: TotalMessagesSlide, theme: 'dark' },
+  { id: 'top-channels', component: TopChannelsSlide, theme: 'light' },
+  { id: 'confessions', component: ConfessionsMetaSlide, theme: 'light' },
+  { id: 'ysws', component: YSWSSlide, theme: 'light' },
+  { id: 'hackatime', component: HackatimeSlide, theme: 'dark' },
+  { id: 'group', component: GroupSlide, theme: 'light' },
+  { id: 'summary', component: SummarySlide, theme: 'dark' }
 ];

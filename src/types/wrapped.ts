@@ -12,6 +12,11 @@ export interface WrappedData {
   ySwsProjects: string[];
   hackatimeHours: number;
   randomGroup: Clan['name'];
+  shareOptions?: {
+    hideDms?: boolean;
+    hideTopChannels?: boolean;
+    hideBestie?: boolean;
+  };
 }
 
 export interface SlideProps {

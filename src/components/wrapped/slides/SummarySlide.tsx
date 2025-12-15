@@ -47,7 +47,9 @@ export default function SummarySlide({ data }: SlideProps) {
 
         <div className="col-span-3 row-span-2 bg-[#1e1e1e] text-wrapped-cream border border-white/10 rounded-2xl p-3 flex flex-col justify-between">
           <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Bestie</span>
-          <span className="text-xl md:text-2xl font-black tracking-tighter truncate">@{data.topDms[0].name}</span>
+          <span className="text-xl md:text-2xl font-black tracking-tighter truncate">
+            {data.shareOptions?.hideBestie ? '???' : `@${data.topDms[0].name}`}
+          </span>
         </div>
 
         <div className="col-span-2 row-span-1 bg-wrapped-purple text-wrapped-cream rounded-xl p-1.5 flex flex-col justify-center items-center text-center">
