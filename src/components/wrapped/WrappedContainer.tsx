@@ -12,13 +12,17 @@ export interface SlideConfig {
 interface WrappedContainerProps {
   data: WrappedData;
   slides: SlideConfig[];
+  isSharedView?: boolean;
 }
 
-export default function WrappedContainer({ data, slides }: WrappedContainerProps) {
+export default function WrappedContainer({ data, slides, isSharedView = false }: WrappedContainerProps) {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [isSharingLoading, setIsSharingLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   
   useEffect(() => {
@@ -27,6 +31,69 @@ export default function WrappedContainer({ data, slides }: WrappedContainerProps
       audioRef.current.muted = true;
     }
   }, []);
+
+  useEffect(() => {
+    if (!isSharedView) {
+      fetch('/api/share')
+        .then(res => res.json())
+        .then(data => {
+          if (data.publicId) {
+            setShareUrl(`${window.location.origin}/view/${data.publicId}`);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [isSharedView]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        audioRef.current?.pause();
+      } else if (!isMuted) {
+        audioRef.current?.play().catch(console.error);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isMuted]);
+
+  const handleShare = async () => {
+    setIsSharingLoading(true);
+    try {
+      const res = await fetch('/api/share', { method: 'POST' });
+      const data = await res.json();
+      if (data.publicId) {
+        setShareUrl(`${window.location.origin}/view/${data.publicId}`);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSharingLoading(false);
+    }
+  };
+
+  const handleDeleteShare = async () => {
+    setIsSharingLoading(true);
+    try {
+      await fetch('/api/share', { method: 'DELETE' });
+      setShareUrl(null);
+      setShowShareMenu(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSharingLoading(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (shareUrl) {
+      navigator.clipboard.writeText(shareUrl);
+      setShowShareMenu(false);
+    }
+  };
 
   const toggleMute = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
@@ -68,6 +135,14 @@ export default function WrappedContainer({ data, slides }: WrappedContainerProps
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  useEffect(() => {
+    const handleClickOutside = () => setShowShareMenu(false);
+    if (showShareMenu) {
+      window.addEventListener('click', handleClickOutside);
+    }
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, [showShareMenu]);
 
   const currentSlideConfig = slides[currentSlideIndex];
   const CurrentSlide = currentSlideConfig.component;
@@ -114,6 +189,61 @@ export default function WrappedContainer({ data, slides }: WrappedContainerProps
       </div>
 
       <audio ref={audioRef} src="/music.mp3" loop />
+      
+      <div className="absolute top-8 left-4 z-50">
+        {!isSharedView ? (
+            <div className="relative">
+                <button
+                    onClick={(e) => { e.stopPropagation(); setShowShareMenu(!showShareMenu); }}
+                    className={`p-2 rounded-full backdrop-blur-sm transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-black/10 hover:bg-black/20 text-black'}`}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="1" />
+                        <circle cx="19" cy="12" r="1" />
+                        <circle cx="5" cy="12" r="1" />
+                    </svg>
+                </button>
+                
+                {showShareMenu && (
+                    <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-xl overflow-hidden py-1 text-black">
+                        {shareUrl ? (
+                            <>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleCopyLink(); }}
+                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-medium"
+                                >
+                                    Copy Link
+                                </button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteShare(); }}
+                                    disabled={isSharingLoading}
+                                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-medium text-red-600"
+                                >
+                                    {isSharingLoading ? 'Deleting...' : 'Stop Sharing'}
+                                </button>
+                            </>
+                        ) : (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); handleShare(); }}
+                                disabled={isSharingLoading}
+                                className="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm font-medium"
+                            >
+                                {isSharingLoading ? 'Creating...' : 'Share Wrapped'}
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
+        ) : (
+            <a 
+                href="/"
+                className={`block px-4 py-2 rounded-full backdrop-blur-sm transition-colors text-sm font-bold ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-black/10 hover:bg-black/20 text-black'}`}
+            >
+                Get your own Wrapped
+            </a>
+        )}
+      </div>
+
       <button
         onClick={toggleMute}
         className={`absolute top-8 right-4 z-50 p-2 rounded-full backdrop-blur-sm transition-colors ${isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-black/10 hover:bg-black/20 text-black'}`}
