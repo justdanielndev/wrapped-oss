@@ -142,11 +142,11 @@ export default function Home() {
                                 <div className="flex-1">
                                     <span className="text-lg font-bold block mb-1">Include DMs & Private Channels</span>
                                     <p className="text-sm opacity-60 leading-relaxed">
-                                        We'll count messages in your DMs and private channels. 
-                                        <br/><br/>
-                                        <span className="text-wrapped-red font-bold">We do not read or store your message content.</span>
+                                        We'll count messages in your DMs and private channels to show an accurate message count, together with your top DMs and channels.
                                         <br/>
-                                        Your token is deleted immediately after counting.
+                                        <span className="text-wrapped-red font-bold">We do not read or store your message content at any point.</span>
+                                        <br/>
+                                        Your token is deleted immediately after counting your messages.
                                     </p>
                                 </div>
                             </label>
