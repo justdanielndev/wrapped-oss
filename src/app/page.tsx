@@ -55,6 +55,15 @@ export default function Home() {
 
         if (res.ok) {
           const data = await res.json();
+          if(data.error && data.waitlist) {
+              setOnWaitlist(true);
+              if (data.waitlist.status === 'processing') {
+                  setIsProcessing(true);
+              } else {
+                  setWaitlistPosition(data.waitlist.position);
+              }
+            return;
+          }
           if (data.requiresGithub) {
             setShowGithubInput(true);
           } else {
