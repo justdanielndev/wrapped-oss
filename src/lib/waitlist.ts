@@ -47,6 +47,26 @@ export async function addToWaitlist(
   }
 }
 
+export async function removeUser(userId: string): Promise<void> {
+    try {
+        const res = await databases.listDocuments(
+            DB_ID,
+            COLLECTION_ID,
+            [Query.equal('userId', userId)]
+        );
+        
+        if (res.documents.length > 0) {
+            await databases.deleteDocument(
+                DB_ID,
+                COLLECTION_ID,
+                res.documents[0].$id
+            );
+        }
+    } catch (e) {
+        console.error('Error removing user', e);
+    }
+}
+
 export async function getWaitlistSize(): Promise<number> {
     try {
         const res = await databases.listDocuments(

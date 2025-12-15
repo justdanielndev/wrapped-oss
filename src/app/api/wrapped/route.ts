@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { WrappedData } from '@/types/wrapped';
 import { Client, Databases, Query } from 'node-appwrite';
-import { getUserData, getUserPosition } from '@/lib/waitlist';
+import { getUserData, getUserPosition, removeUser } from '@/lib/waitlist';
 import { getUserClan } from '@/lib/clans';
 import { processWaitlist } from '@/lib/worker';
+import { getAllSlackTokens } from '@/lib/slack-tokens';
 
 async function slackFetch(endpoint: string, token: string, params: Record<string, string> = {}) {
   const url = new URL(`https://slack.com/api/${endpoint}`);
@@ -179,8 +180,35 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ ...data, requiresGithub });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Data fetch error:', error);
+
+    if (error.message && (error.message.includes('token_revoked') || error.message.includes('account_inactive'))) {
+        console.log(`User ${userId} token revoked (in API). Removing from DB.`);
+        if (userId) await removeUser(userId);
+        
+        const botTokens = getAllSlackTokens();
+        if (botTokens.length > 0 && userId) {
+             const dmSenderToken = botTokens[0];
+             try {
+                const dmRes = await slackFetch('conversations.open', dmSenderToken, {
+                    users: userId,
+                });
+                
+                if (dmRes.ok) {
+                    await slackFetch('chat.postMessage', dmSenderToken, {
+                        channel: dmRes.channel.id,
+                        text: `Hi <@${userId}>, just letting you know that your waitlist item failed to process because you revoked the token, so I had to delete it. If you want your Wrapped, you'll have to open the site again.\n\nJust FYI, Wrapped doesn't read message content and auto-deletes tokens after counting your messages, so no one can or will read your private data. Also, you removing the token has increased processing and waitlist time unnecessarily for other users who do want to see their Wrapped, as it has had to go through your account just to find your token not working.\n\nIf you still don't trust the site accessing that data, you can go to https://wrapped.isitzoe.dev/noprivates to auth a version of the app with no private data fetching. It's a worse experience (lacks private channels, DMs, meta, confessions, and Prox2 data), but it only accesses public channel data.`,
+                    });
+                }
+             } catch (e) {
+                 console.error('Failed to send revocation DM', e);
+             }
+        }
+        
+        return NextResponse.json({ error: 'Token revoked. Please login again.' }, { status: 401 });
+    }
+
     return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
   }
 }

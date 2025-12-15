@@ -1,4 +1,4 @@
-import { getNextUserToProcess, markUserProcessed, isProcessingActive, setProcessing, resetStuckUsers } from '@/lib/waitlist';
+import { getNextUserToProcess, markUserProcessed, isProcessingActive, setProcessing, resetStuckUsers, removeUser } from '@/lib/waitlist';
 import { getAllSlackTokens } from '@/lib/slack-tokens';
 
 async function slackFetch(endpoint: string, initialToken: string, params: Record<string, string> = {}, retries = 100) {
@@ -37,6 +37,10 @@ async function slackFetch(endpoint: string, initialToken: string, params: Record
                         await new Promise(resolve => setTimeout(resolve, (retryAfter + 1) * 1000));
                     }
                     continue;
+                }
+
+                if (data.error === 'token_revoked' || data.error === 'account_inactive') {
+                    throw new Error(data.error);
                 }
                 
                 if (data.error === 'not_allowed_token_type') {
@@ -186,7 +190,10 @@ async function processUser(
                     count: count
                 };
             }
-          } catch (e) {
+          } catch (e: any) {
+            if (e.message === 'token_revoked' || e.message === 'account_inactive') {
+                throw e;
+            }
             console.error(`Error searching in channel ${channel.name || channel.id}:`, e);
             return { type: 'error' };
           }
@@ -220,7 +227,10 @@ async function processUser(
                       image: userRes.user.profile.image_192 || userRes.user.profile.image_512
                   };
               }
-          } catch (e) {
+          } catch (e: any) {
+              if (e.message === 'token_revoked' || e.message === 'account_inactive') {
+                  throw e;
+              }
               console.error(`Failed to fetch user info for ${dm.userId}`, e);
           }
           return { name: dm.userId, count: dm.count };
@@ -297,7 +307,31 @@ async function processUser(
         metaMessages,
         prox2Messages
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message === 'token_revoked' || error.message === 'account_inactive') {
+        console.log(`User ${userId} token revoked. Removing from DB and DMing.`);
+        await removeUser(userId);
+        
+        const botTokens = getAllSlackTokens();
+        if (botTokens.length > 0) {
+             const dmSenderToken = botTokens[0];
+             try {
+                const dmRes = await slackFetch('conversations.open', dmSenderToken, {
+                    users: slackUserId,
+                });
+                if (dmRes.ok) {
+                    await slackFetch('chat.postMessage', dmSenderToken, {
+                        channel: dmRes.channel.id,
+                        text: `Hi <@${slackUserId}>, just letting you know that your waitlist item failed to process because you revoked the token, so I had to delete it. If you want your Wrapped, you'll have to open the site again.\n\nJust FYI, Wrapped doesn't read message content and auto-deletes tokens after counting your messages, so no one can or will read your private data. Also, you removing the token has increased processing and waitlist time unnecessarily for other users who do want to see their Wrapped, as it has had to go through your account just to find your token not working.\n\nIf you still don't trust the site accessing that data, you can go to https://wrapped.isitzoe.dev/noprivates to auth a version of the app with no private data fetching. It's a worse experience (lacks private channels, DMs, meta, confessions, and Prox2 data), but it only accesses public channel data.`,
+                    });
+                }
+             } catch (e) {
+                 console.error('Failed to send revocation DM', e);
+             }
+        }
+        
+        return { success: false, error: 'token_revoked' };
+    }
     console.error(`Error processing user ${userId}:`, error);
     return { success: false, error: String(error) };
   }
