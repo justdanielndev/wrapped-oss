@@ -49,7 +49,7 @@ export async function updateGlobalStats(userId: string, messageCount: number): P
                 ID.unique(),
                 {
                     OriginID: globalStatsID,
-                    messagecount: messageCount
+                    messagecount: String(messageCount)
                 }
             );
         }
