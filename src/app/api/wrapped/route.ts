@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { WrappedData } from '@/types/wrapped';
 import { Client, Databases, Query } from 'node-appwrite';
-import { getUserData, getUserPosition, removeUser } from '@/lib/waitlist';
+import { getUserData, getUserPosition, removeUser, updateGlobalStats } from '@/lib/waitlist';
 import { getUserClan } from '@/lib/clans';
 import { processWaitlist } from '@/lib/worker';
 import { getAllSlackTokens } from '@/lib/slack-tokens';
@@ -71,6 +71,8 @@ export async function GET(request: Request) {
         });
         totalMessages = searchRes.ok ? searchRes.messages.total : 0;
     }
+
+    updateGlobalStats(userId, totalMessages).catch(err => console.error('Failed to update global stats:', err));
 
     if (topChannels.length === 0) {
       topChannels.push({ name: "general", rank: 1 });

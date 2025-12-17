@@ -9,8 +9,54 @@ const databases = new Databases(client);
 
 const DB_ID = 'wrappeddb';
 const COLLECTION_ID = 'waitlist';
+const GLOBAL_STATS_COLLECTION_ID = 'globalstats';
 
 let isProcessing = false;
+
+export async function updateGlobalStats(userId: string, messageCount: number): Promise<void> {
+    try {
+        const userRes = await databases.listDocuments(
+            DB_ID,
+            COLLECTION_ID,
+            [Query.equal('userId', userId)]
+        );
+
+        if (userRes.documents.length === 0) return;
+        const userDoc = userRes.documents[0];
+
+        let globalStatsID = userDoc.globalStatsID;
+
+        if (!globalStatsID) {
+            globalStatsID = ID.unique();
+            await databases.updateDocument(
+                DB_ID,
+                COLLECTION_ID,
+                userDoc.$id,
+                { globalStatsID }
+            );
+        }
+
+        const statsRes = await databases.listDocuments(
+            DB_ID,
+            GLOBAL_STATS_COLLECTION_ID,
+            [Query.equal('OriginID', globalStatsID)]
+        );
+
+        if (statsRes.documents.length === 0) {
+            await databases.createDocument(
+                DB_ID,
+                GLOBAL_STATS_COLLECTION_ID,
+                ID.unique(),
+                {
+                    OriginID: globalStatsID,
+                    messagecount: messageCount
+                }
+            );
+        }
+    } catch (e) {
+        console.error('Error updating global stats', e);
+    }
+}
 
 export async function addToWaitlist(
   userId: string,

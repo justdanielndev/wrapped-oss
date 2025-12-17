@@ -1,4 +1,4 @@
-import { getNextUserToProcess, markUserProcessed, isProcessingActive, setProcessing, resetStuckUsers, removeUser } from '@/lib/waitlist';
+import { getNextUserToProcess, markUserProcessed, isProcessingActive, setProcessing, resetStuckUsers, removeUser, updateGlobalStats } from '@/lib/waitlist';
 import { getAllSlackTokens } from '@/lib/slack-tokens';
 
 async function slackFetch(endpoint: string, initialToken: string, params: Record<string, string> = {}, retries = 100) {
@@ -360,6 +360,10 @@ export async function processWaitlist() {
 
             const result = await processUser(user.userId, user.slackUserId, user.token, user.mode);
             
+            if (result.success) {
+                await updateGlobalStats(user.userId, result.totalMessages);
+            }
+
             await markUserProcessed(user.userId, result.success ? { 
                 topChannels: result.channels,
                 topDms: result.dms,
