@@ -381,26 +381,9 @@ export async function processWaitlist() {
                     if (user) {
                         console.log(`Worker ${workerId} (backfill) processing user: ${user.userId}`);
                         
-                        const botTokens = getAllSlackTokens();
-                        const publicToken = botTokens.find(t => t.startsWith('xoxp')) || botTokens[0];
-                        
-                        let totalMessages = 0;
-                        try {
-                            const totalRes = await slackFetch('search.messages', publicToken, { 
-                                query: `from:<@${user.userId}> during:2025`, 
-                                count: '1' 
-                            });
-                            console.log(`Backfill fetch for ${user.userId} returned:`, totalRes.ok, totalRes.error, totalRes.messages?.total);
-                            totalMessages = totalRes.ok ? totalRes.messages.total : 0;
-                        } catch (e) {
-                            console.error(`Backfill fetch error for ${user.userId}`, e);
-                        }
-
-                        await updateGlobalStats(user.userId, totalMessages);
-                        
                         await markUserProcessed(user.userId);
                         
-                        await new Promise((resolve) => setTimeout(resolve, 2000));
+                        await new Promise((resolve) => setTimeout(resolve, 100));
                         continue;
                     }
                 }
